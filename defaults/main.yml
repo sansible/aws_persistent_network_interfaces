@@ -1,0 +1,13 @@
+---
+
+sansible_persistent_network_interfaces_device_index: 1
+
+sansible_persistent_network_interfaces_aws:
+  assigned_eni_instance_tag: instanceeniid
+  tagged_eni_lookup_filters: {}
+
+sansible_persistent_network_interfaces_task:
+  # Number of retries for some operations
+  retries: 2
+  # Delay in seconds beteween retries
+  delay: 5

@@ -1,0 +1,50 @@
+---
+
+- name: EC2 fact hunt
+  action: ec2_facts
+  register: ec2_vars
+  until: ec2_vars is succeeded
+  retries: "{{ sansible_persistent_network_interfaces_task.retries }}"
+  delay: "{{ sansible_persistent_network_interfaces_task.delay }}"
+
+- name: Set EC2 interface key
+  set_fact:
+    persistent_network_interfaces_primary_interface_key: "ansible_ec2_network_interfaces_macs_{{ ansible_ec2_mac | regex_replace(':', '_') }}"
+  when: ansible_ec2_instance_id | default(none) is not none
+
+- name: Set subnet gateway IP
+  set_fact:
+    persistent_network_interfaces_subnet_gateway_ip: "{{ ec2_vars.ansible_facts[
+      persistent_network_interfaces_primary_interface_key + '_subnet_ipv4_cidr_block'
+      ] | ipaddr('net') | ipaddr('1') | ipaddr('ip') }}"
+  when: ansible_ec2_instance_id | default(none) is not none
+
+- name: AWS setup assigned ENI
+  include: configure/assigned_eni.yml
+  when:
+    - ansible_ec2_instance_id | default(none) is not none
+    - sansible_persistent_network_interfaces_aws.assigned_eni_instance_tag is not none
+
+- name: AWS setup tagged ENI
+  include: configure/tagged_eni.yml
+  when:
+    - ansible_ec2_instance_id | default(none) is not none
+    - sansible_persistent_network_interfaces_aws.assigned_eni_instance_tag | default(none) is none
+
+- name: Create network config for ENI
+  become: yes
+  template:
+    dest: "/etc/network/interfaces.d/eth{{ sansible_persistent_network_interfaces_device_index }}.cfg"
+    mode: 0644
+    src: eth.cfg.j2
+  when: persistent_network_interfaces_interface_ip | default(none) is not none
+  register: persistent_network_interfaces_config
+
+- name: Bring ENI interface up
+  become: yes
+  command: "ifup eth{{ sansible_persistent_network_interfaces_device_index }}"
+  when: persistent_network_interfaces_config is changed
+
+- name: Update facts with new interface details
+  action: setup
+  when: persistent_network_interfaces_config is changed

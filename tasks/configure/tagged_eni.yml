@@ -1,0 +1,51 @@
+---
+
+- name: Tagged ENIs ensure interface not attached to instance
+  ec2_eni_facts:
+    filters: "{{
+      sansible_persistent_network_interfaces_aws.tagged_eni_lookup_filters | combine( {
+        'attachment.instance-id': ansible_ec2_instance_id,
+        'availability-zone': ansible_ec2_placement_availability_zone,
+        'status': 'in-use'
+      } )
+    }}"
+    region: "{{ ansible_ec2_placement_region }}"
+  register: tagged_eni_attachment_facts
+  until: tagged_eni_attachment_facts is succeeded
+  retries: "{{ sansible_persistent_network_interfaces_task.retries }}"
+  delay: "{{ sansible_persistent_network_interfaces_task.delay }}"
+
+- name: Tagged ENIs lookup available interfaces
+  ec2_eni_facts:
+    filters: "{{
+      sansible_persistent_network_interfaces_aws.tagged_eni_lookup_filters | combine( {
+        'availability-zone': ansible_ec2_placement_availability_zone,
+        'status': 'available'
+      } )
+    }}"
+    region: "{{ ansible_ec2_placement_region }}"
+  register: tagged_eni_facts
+  when: tagged_eni_attachment_facts.network_interfaces[0] is not defined
+  until: tagged_eni_facts.network_interfaces[0].network_interface_id is defined
+  retries: "{{ sansible_persistent_network_interfaces_task.retries }}"
+  delay: "{{ sansible_persistent_network_interfaces_task.delay }}"
+
+- name: Tagged ENIs attach available interface
+  ec2_eni:
+    attached: yes
+    device_index: "{{ sansible_persistent_network_interfaces_device_index }}"
+    eni_id: "{{ tagged_eni_facts.network_interfaces[0].network_interface_id }}"
+    instance_id: "{{ ansible_ec2_instance_id }}"
+    private_ip_address: "{{ tagged_eni_facts.network_interfaces[0].private_ip_address }}"
+    region: "{{ ansible_ec2_placement_region }}"
+    subnet_id: "{{ ec2_vars.ansible_facts[ persistent_network_interfaces_primary_interface_key + '_subnet_id' ] }}"
+  when: tagged_eni_attachment_facts.network_interfaces[0] is not defined
+  register: tagged_eni_connect
+  until: tagged_eni_connect is succeeded
+  retries: "{{ sansible_persistent_network_interfaces_task.retries }}"
+  delay: "{{ sansible_persistent_network_interfaces_task.delay }}"
+
+- name: Tagged ENI set interface facts
+  set_fact:
+    persistent_network_interfaces_interface_ip: "{{ tagged_eni_connect.interface.private_ip_address }}"
+  when: tagged_eni_connect is changed

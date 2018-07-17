@@ -1,0 +1,4 @@
+auto eth{{ sansible_persistent_network_interfaces_device_index }}
+iface eth{{ sansible_persistent_network_interfaces_device_index }} inet dhcp
+  post-up ip route add default via {{ persistent_network_interfaces_subnet_gateway_ip }} dev eth{{ sansible_persistent_network_interfaces_device_index }} tab 2
+  post-up ip rule add from {{ persistent_network_interfaces_interface_ip }}/32 tab 2 priority 600

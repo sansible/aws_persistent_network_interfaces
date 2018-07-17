@@ -1,0 +1,54 @@
+---
+
+- name: Assigned ENI grab tags from instance
+  ec2_tag:
+    region: "{{ ansible_ec2_placement_region }}"
+    resource: "{{ ansible_ec2_instance_id }}"
+    state: list
+  register: assigned_eni_ec2_instance_tags
+  retries: "{{ sansible_persistent_network_interfaces_task.retries }}"
+  delay: "{{ sansible_persistent_network_interfaces_task.delay }}"
+  until: assigned_eni_ec2_instance_tags is succeeded
+
+- name: Assigned ENI ensure interface not attached to instance
+  ec2_eni_facts:
+    filters:
+      attachment.instance-id: "{{ ansible_ec2_instance_id }}"
+      network-interface-id: "{{ assigned_eni_ec2_instance_tags.tags[sansible_persistent_network_interfaces_aws.assigned_eni_instance_tag] }}"
+      status: in-use
+    region: "{{ ansible_ec2_placement_region }}"
+  register: assigned_eni_attachment_facts
+  until: assigned_eni_attachment_facts is succeeded
+  retries: "{{ sansible_persistent_network_interfaces_task.retries }}"
+  delay: "{{ sansible_persistent_network_interfaces_task.delay }}"
+
+- name: Assigned ENIs lookup interface
+  ec2_eni_facts:
+    filters:
+      network-interface-id: "{{ assigned_eni_ec2_instance_tags.tags[sansible_persistent_network_interfaces_aws.assigned_eni_instance_tag] }}"
+    region: "{{ ansible_ec2_placement_region }}"
+  register: assigned_eni_facts
+  until: assigned_eni_facts is succeeded
+  when: assigned_eni_attachment_facts.network_interfaces[0] is not defined
+  retries: "{{ sansible_persistent_network_interfaces_task.retries }}"
+  delay: "{{ sansible_persistent_network_interfaces_task.delay }}"
+
+- name: Assigned ENI attach available interface
+  ec2_eni:
+    attached: yes
+    device_index: "{{ sansible_persistent_network_interfaces_device_index }}"
+    eni_id: "{{ assigned_eni_facts.network_interfaces[0].network_interface_id }}"
+    instance_id: "{{ ansible_ec2_instance_id }}"
+    private_ip_address: "{{ assigned_eni_facts.network_interfaces[0].private_ip_address }}"
+    region: "{{ ansible_ec2_placement_region }}"
+    subnet_id: "{{ ec2_vars.ansible_facts[ persistent_network_interfaces_primary_interface_key + '_subnet_id' ] }}"
+  when: assigned_eni_attachment_facts.network_interfaces[0] is not defined
+  register: assigned_eni_connect
+  until: assigned_eni_connect is succeeded
+  retries: "{{ sansible_persistent_network_interfaces_task.retries }}"
+  delay: "{{ sansible_persistent_network_interfaces_task.delay }}"
+
+- name: Assigned ENI set interface facts
+  set_fact:
+    persistent_network_interfaces_interface_ip: "{{ assigned_eni_connect.interface.private_ip_address }}"
+  when: assigned_eni_connect is changed
