@@ -1,6 +1,7 @@
 ---
 
 sansible_persistent_network_interfaces_device_index: 1
+sansible_persistent_network_interfaces_device_type: eth
 
 sansible_persistent_network_interfaces_aws:
   assigned_eni_instance_tag: instanceeniid

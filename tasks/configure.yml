@@ -34,7 +34,7 @@
 - name: Create network config for ENI
   become: yes
   template:
-    dest: "/etc/network/interfaces.d/eth{{ sansible_persistent_network_interfaces_device_index }}.cfg"
+    dest: "/etc/network/interfaces.d/{{ sansible_persistent_network_interfaces_device_type }}{{ sansible_persistent_network_interfaces_device_index }}.cfg"
     mode: 0644
     src: eth.cfg.j2
   when: persistent_network_interfaces_interface_ip | default(none) is not none
@@ -42,7 +42,7 @@
 
 - name: Bring ENI interface up
   become: yes
-  command: "ifup eth{{ sansible_persistent_network_interfaces_device_index }}"
+  command: "ifup {{ sansible_persistent_network_interfaces_device_type }}{{ sansible_persistent_network_interfaces_device_index }}"
   when: persistent_network_interfaces_config is changed
 
 - name: Update facts with new interface details
