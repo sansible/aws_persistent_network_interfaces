@@ -22,12 +22,13 @@ be attached as `eth1`
 ```
 
 
-This example will attach ENI as `eth2`. The ENI needs to be in the same AZ and have
+This example will attach ENI as `ens6`. The ENI needs to be in the same AZ and have
 tags "Environment" and "Application"
 
 ```YAML
 - role: sansible.aws_persistent_network_interfaces
-  sansible_persistent_network_interfaces_device_index: 2
+  sansible_persistent_network_interfaces_device_type: ens
+  sansible_persistent_network_interfaces_device_index: 6
   sansible_persistent_network_interfaces_aws:
     assigned_eni_instance_tag: ~
     tagged_eni_lookup_filters:
