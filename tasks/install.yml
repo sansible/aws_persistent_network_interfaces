@@ -12,3 +12,18 @@
   with_items:
     - boto
     - netaddr
+
+# ifupdown got replaced with netplan on Ubuntu Bionic.
+# this is a tmp fix. Proper fix will include netplan config and mechanism to
+# detect which one should be used.
+- name: (netplan hack) Ensure ifupdown package
+  become: yes
+  apt:
+    name: ifupdown
+
+- name: (netplan hack) Ensure interfaces.d include
+  become: yes
+  lineinfile:
+    line: source /etc/network/interfaces.d/*.cfg"
+    path: /etc/network/interfaces
+    regexp: ^source +/etc/network/interfaces.d/.*

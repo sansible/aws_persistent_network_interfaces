@@ -1,0 +1,11 @@
+---
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    eth{{ sansible_persistent_network_interfaces_device_index }}:
+      dhcp4: true
+      routes:
+        - to: 0.0.0.0/0
+          via: {{ persistent_network_interfaces_subnet_gateway_ip }}
+          table: 102
