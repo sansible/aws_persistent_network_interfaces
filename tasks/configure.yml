@@ -31,20 +31,8 @@
     - ansible_ec2_instance_id | default(none) is not none
     - sansible_persistent_network_interfaces_aws.assigned_eni_instance_tag | default(none) is none
 
-- name: Create network config for ENI
-  become: yes
-  template:
-    dest: "/etc/network/interfaces.d/eth{{ sansible_persistent_network_interfaces_device_index }}.cfg"
-    mode: 0644
-    src: eth.cfg.j2
-  when: persistent_network_interfaces_interface_ip | default(none) is not none
-  register: persistent_network_interfaces_config
+- name: Configure network with ifupdown
+  include: configure/ifupdown.yml
 
-- name: Bring ENI interface up
-  become: yes
-  command: "ifup eth{{ sansible_persistent_network_interfaces_device_index }}"
-  when: persistent_network_interfaces_config is changed
-
-- name: Update facts with new interface details
-  action: setup
-  when: persistent_network_interfaces_config is changed
+- name: Configure network with netplan
+  include: configure/netplan.yml
